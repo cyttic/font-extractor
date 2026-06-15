@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+data/synth/*
+data/crops/*
+data/scans/*
+!data/**/.gitkeep
+models/*.pth
+output/overlays/*
+output/*.ttf
+!output/**/.gitkeep
+*.tar

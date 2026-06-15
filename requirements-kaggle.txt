@@ -1,0 +1,6 @@
+# Kaggle GPU notebooks — P2 (CRAFT fine-tune) and P4 (classifier).
+# torch / torchvision / numpy / opencv are preinstalled on Kaggle GPU images,
+# so keep this minimal to avoid slow notebook setup.
+webdataset>=0.2        # stream the sharded synth dataset from /kaggle/input
+pyyaml>=6
+tqdm>=4.66

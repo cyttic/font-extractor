@@ -1,0 +1,99 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Hebrew Handwriting → TTF Font Generator — central config
+# Every tunable threshold lives here. No magic numbers in logic.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Path roots. Override `synth_out` / `kaggle_*` when running on Kaggle.
+paths:
+  fonts:        /mnt/ssd2/cyttic/projects/fontsVisualizer/fonts  # 40 training fonts (scaffolding only)
+  scans:        data/scans            # real handwriting (needed at P3, not P1)
+  synth_out:    data/synth            # P1 output (sharded datasets + manifests)
+  crops:        data/crops            # P3 output
+  models:       models
+  overlays:     output/overlays       # human-eyeball debug images
+  output:       output
+
+# The 27 Hebrew letterforms (22 base + 5 final). Order is the class index order for P4.
+alphabet:
+  base:  ["א","ב","ג","ד","ה","ו","ז","ח","ט","י","כ","ל","מ","נ","ס","ע","פ","צ","ק","ר","ש","ת"]
+  final: ["ך","ם","ן","ף","ץ"]
+
+# ─── Phase 1 — synthetic data generator ─────────────────────────────────────
+synth:
+  seed: 1234                  # global seed; augmentation is reproducible
+  render_px: 128              # nominal glyph render height (px) before resize
+  # Isolated single-glyph dataset (for P4 classifier)
+  glyphs:
+    out_size: 64             # final square crop fed to the CNN
+    per_class_per_font: 30   # samples per letterform per font (x40 fonts x27 = ~32k base)
+    pad_ratio: 0.18          # padding around tight glyph bbox before square-fit
+  # Multi-letter line dataset (for P2 CRAFT) — region + affinity heatmaps
+  lines:
+    enabled: true
+    count: 4000              # number of synthetic lines to render
+    min_chars: 4
+    max_chars: 12
+    canvas_h: 96
+    space_px: [6, 28]        # random inter-glyph gap range
+    heatmap_sigma_ratio: 0.4 # Gaussian sigma as fraction of char box size
+  # Output packaging — tar/WebDataset shards (chosen for Kaggle upload)
+  packaging:
+    format: webdataset
+    shard_size: 2000         # samples per .tar shard
+    glyph_shard_prefix:  glyphs
+    line_shard_prefix:   lines
+    manifest: manifest.jsonl # labels + per-char boxes
+  # Sample sheet for human inspection
+  sample_sheet:
+    n: 50
+    path: output/overlays/p1_sample_sheet.png
+
+# ─── Phase 1 — augmentation pipeline (seeded, toggleable) ───────────────────
+augment:
+  enabled: true
+  elastic:    {enabled: true, alpha: [20, 45], sigma: [4, 7]}
+  grid_warp:  {enabled: true, num_steps: 5, distort: 0.15}
+  rotation:   {enabled: true, max_deg: 8}
+  slant:      {enabled: true, max_shear: 0.18}
+  stroke:     {enabled: true, op: [erode, dilate, none], max_kernel: 3}
+  blur:       {enabled: true, max_sigma: 1.2}
+  noise:      {enabled: true, gauss_std: [0, 12]}
+  ink_bleed:  {enabled: true, prob: 0.3}
+  paper_bg:   {enabled: true, prob: 0.5}  # paper/background textures
+
+# ─── Phase 2 — CRAFT fine-tune (Kaggle GPU) ─────────────────────────────────
+craft:
+  repo: backtime92/CRAFT-Reimplementation
+  init_weights: craft_mlt_25k.pth
+  kaggle_input:  /kaggle/input        # dataset mount root on Kaggle
+  kaggle_output: /kaggle/working
+  epochs: 30
+  batch_size: 8
+  lr: 0.0001
+
+# ─── Phase 4 — classifier (Kaggle GPU) ──────────────────────────────────────
+classifier:
+  input_size: 64
+  num_classes: 27
+  epochs: 25
+  batch_size: 128
+  lr: 0.001
+  val_split: 0.1
+  kaggle_input:  /kaggle/input
+  kaggle_output: /kaggle/working
+
+# ─── Phase 3 — detection (placeholders; tuned against real scans) ───────────
+detect:
+  backend: cc                # cc | craft
+  binarize: {method: sauvola, window: 25, k: 0.2}
+  deskew: true
+  min_component_area: 20
+  split_width_ratio: 1.8     # >1.8x median letter width => candidate to split
+  merge_gap_px: 6
+
+# ─── Phase 8 — font assembly (placeholders) ─────────────────────────────────
+font:
+  family: "MyHandwriting"
+  em: 1000
+  ascent: 800
+  descent: 200

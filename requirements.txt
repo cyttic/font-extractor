@@ -1,0 +1,14 @@
+# Local CPU stack — Phase 1 (synth data) + P3, P5–P8.
+# GPU training (P2 CRAFT, P4 classifier) runs on Kaggle — see requirements-kaggle.txt.
+pillow>=11
+numpy>=2
+opencv-python-headless>=4.10
+scikit-image>=0.24
+scipy>=1.13
+uharfbuzz>=0.39        # Hebrew (RTL) shaping
+freetype-py>=2.5       # exact glyph metrics for tight bounding boxes
+fonttools>=4.50
+pyyaml>=6
+tqdm>=4.66
+webdataset>=0.2        # tar-shard packaging of synth output
+# System packages (not pip): fontforge, potrace  ->  apt install fontforge potrace

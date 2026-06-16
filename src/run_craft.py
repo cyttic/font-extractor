@@ -37,10 +37,13 @@ def copy_state(state):
     return state
 
 
-def load_net():
+def load_net(name="craft_mlt_25k.pth"):
+    """Load a CRAFT model by weights filename under models/ (default = stock general model)."""
+    weights = ROOT / "models" / name
     net = CRAFT()
-    net.load_state_dict(copy_state(torch.load(ROOT / "models" / "craft_mlt_25k.pth", map_location="cpu")))
+    net.load_state_dict(copy_state(torch.load(weights, map_location="cpu")))
     net.eval()
+    print(f"[craft] loaded {weights.name}")
     return net
 
 

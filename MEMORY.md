@@ -6,3 +6,4 @@
 - [Extraction pipeline CRAFT+GT](memory/extraction-pipeline-craft-gt.md) — pretrained CRAFT + GT alignment + classifier verify; no CRAFT training needed
 - [Real handwriting dataset](memory/real-handwriting-dataset.md) — dataset_matan, 5317 lines / 496 writers with GT text
 - [Decoding and bootstrap](memory/decoding-and-bootstrap.md) — lexicon decoding works (2.5× word acc); classifier is bottleneck (33% real letter acc); bootstrapping on real crops
+- [TrOCR word recognition](memory/trocr-word-recognition.md) — Hebrew TrOCR server (webHebrewOCR, :8001 GPU) for end-to-end word reading, wired into the FastAPI demo

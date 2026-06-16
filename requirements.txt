@@ -11,4 +11,23 @@ fonttools>=4.50
 pyyaml>=6
 tqdm>=4.66
 webdataset>=0.2        # tar-shard packaging of synth output
+gdown>=5               # fetch fonts/crops/weights from Google Drive / mirrors
+
+# Detection + recognition (local inference)
+# torch + torchvision: install the CPU build ->
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch>=2.4
+torchvision>=0.19
+
+# Lexicon decoding + local LLM scorer
+wordfreq>=3            # Hebrew word frequencies (lexicon)
+transformers>=4.40     # DictaLM 2.0 (optional reranker)
+sentencepiece>=0.2
+accelerate>=0.30
+
+# Demo web app
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
 # System packages (not pip): fontforge, potrace  ->  apt install fontforge potrace
+# CRAFT inference code lives in third_party/CRAFT-pytorch (cloned from clovaai)

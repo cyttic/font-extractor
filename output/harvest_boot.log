@@ -1,0 +1,50 @@
+processing 5317 lines from /mnt/ssd2/cyttic/datasets/dataset_matan/cleaned_dataset/train_pairs
+  800/5317 lines  | aligned so far: 126
+  1200/5317 lines  | aligned so far: 194
+  1400/5317 lines  | aligned so far: 224
+  1800/5317 lines  | aligned so far: 281
+  2100/5317 lines  | aligned so far: 347
+  2400/5317 lines  | aligned so far: 421
+  2600/5317 lines  | aligned so far: 459
+  2800/5317 lines  | aligned so far: 493
+  3600/5317 lines  | aligned so far: 632
+  3800/5317 lines  | aligned so far: 669
+  3900/5317 lines  | aligned so far: 694
+  4000/5317 lines  | aligned so far: 710
+  4400/5317 lines  | aligned so far: 799
+
+per-letter harvest (total | agreed = CRAFT+GT+classifier all match):
+  א  total= 484  agreed= 290  ########################################
+  ב  total= 301  agreed= 101  ########################################
+  ג  total= 112  agreed=  33  #################################
+  ד  total= 154  agreed=  22  ######################
+  ה  total= 472  agreed= 198  ########################################
+  ו  total= 330  agreed=  27  ###########################
+  ז  total=  46  agreed=  20  ####################
+  ח  total= 164  agreed=  53  ########################################
+  ט  total=  47  agreed=  18  ##################
+  י  total= 187  agreed=   0  
+  כ  total= 220  agreed=  38  ######################################
+  ל  total= 451  agreed= 251  ########################################
+  מ  total= 299  agreed= 193  ########################################
+  נ  total=  75  agreed=   8  ########
+  ס  total=  75  agreed=  10  ##########
+  ע  total= 168  agreed=  69  ########################################
+  פ  total=  99  agreed=  33  #################################
+  צ  total=  78  agreed=  27  ###########################
+  ק  total=  92  agreed=  64  ########################################
+  ר  total= 321  agreed=  11  ###########
+  ש  total= 318  agreed= 114  ########################################
+  ת  total= 329  agreed= 236  ########################################
+  ך  total=  81  agreed=  14  ##############
+  ם  total= 219  agreed= 116  ########################################
+  ן  total=  55  agreed=  22  ######################
+  ף  total=  11  agreed=   4  ####
+  ץ  total=   7  agreed=   2  ##
+
+lines aligned: 946/5317
+letters with >=1 candidate: 27/27
+letters with >=1 AGREED (clean) candidate: 26/27
+No agreed crop: י
+crops -> /mnt/ssd2/cyttic/projects/font-extractor/data/crops
+galleries -> /mnt/ssd2/cyttic/projects/font-extractor/output/overlays/gallery_*.png

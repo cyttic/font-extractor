@@ -184,12 +184,13 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
  #ovmsg{{margin-top:14px;font-weight:700}}
  button{{background:#2a7;color:#fff;border:0;cursor:pointer;border-radius:8px;padding:8px 14px;font-size:15px}}
  select{{font-size:15px;padding:6px 8px;border-radius:8px}}
+ .cam{{margin-top:8px;background:#fff;color:#2a7;border:1px solid #2a7;border-radius:8px;padding:8px 14px;font-size:15px;cursor:pointer}}
  .controls{{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px}}
  .controls label{{display:inline-flex;align-items:center;gap:6px}}
  @media (max-width:600px){{
    body{{margin:12px}} h1{{font-size:18px}}
    .controls{{flex-direction:column;align-items:stretch}}
-   .controls label,.controls select,.controls button{{width:100%}}
+   .controls label,.controls select,.controls button,.cam{{width:100%}}
    .word{{flex:1 1 100%}} .word .wimg{{height:64px}}
  }}
 </style></head><body>
@@ -206,6 +207,8 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
     <div class="fname" id="fname"></div>
     <input type="file" id="file" name="file" accept="image/*" style="display:none">
   </div>
+  <button type="button" class="cam" id="camBtn">📷 Take photo</button>
+  <input type="file" id="cam" accept="image/*" capture="environment" style="display:none">
   <div class="muted" style="font-size:11px;margin-bottom:6px">(leave empty to re-run the last image)</div>
   <div class="controls">
     <label>OCR model:
@@ -232,6 +235,9 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
   ['dragenter','dragover'].forEach(function(e){{ drop.addEventListener(e, function(ev){{ ev.preventDefault(); drop.classList.add('drag'); }}); }});
   ['dragleave','drop'].forEach(function(e){{ drop.addEventListener(e, function(ev){{ ev.preventDefault(); drop.classList.remove('drag'); }}); }});
   drop.addEventListener('drop', function(ev){{ if(ev.dataTransfer.files.length){{ file.files = ev.dataTransfer.files; show(); }} }});
+  var cam=document.getElementById('cam'),camBtn=document.getElementById('camBtn');
+  camBtn.addEventListener('click', function(){{ cam.click(); }});
+  cam.addEventListener('change', function(){{ if(cam.files.length){{ file.files = cam.files; show(); }} }});
   var stages=['Preprocessing image…','Detecting words (CRAFT)…','Recognizing text (OCR)…','Almost done…'],i=0;
   form.addEventListener('submit', function(){{ i=0; msg.textContent=stages[0]; ov.classList.add('on'); setInterval(function(){{ i=Math.min(i+1,stages.length-1); msg.textContent=stages[i]; }},1500); }});
 }})();

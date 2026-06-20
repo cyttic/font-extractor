@@ -77,6 +77,7 @@ jobs:
               --name font-extractor \
               --restart unless-stopped \
               --network host \
+              -v "$HOME/fe-logs":/app/logs \
               "$IMAGE"
 
             docker image prune -f

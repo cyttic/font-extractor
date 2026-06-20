@@ -12,13 +12,15 @@ Each word box is colored by OCR confidence:
 """
 import base64
 import io
+import logging
+import os
 import sys
 from pathlib import Path
 
 import cv2
 import numpy as np
 import requests
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.responses import HTMLResponse
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,6 +43,39 @@ app = FastAPI(title="Hebrew Handwriting → TrOCR → Words")
 
 # decoded BGR of the most recent upload, so "Analyze" can re-run without re-picking a file
 LAST_IMAGE = None
+
+
+# ── analyze access log (time / ip / device / recognized count) ───────────────
+analog = logging.getLogger("analyze")
+analog.setLevel(logging.INFO)
+analog.propagate = False
+_h = logging.StreamHandler()                       # -> stdout -> `docker logs`
+_h.setFormatter(logging.Formatter("ANALYZE %(asctime)s %(message)s"))
+analog.addHandler(_h)
+try:                                               # also persist to a file if writable
+    _LOGFILE = Path(os.environ.get("ANALYZE_LOG", str(ROOT / "logs" / "analyze.log")))
+    _LOGFILE.parent.mkdir(parents=True, exist_ok=True)
+    _fh = logging.FileHandler(_LOGFILE, encoding="utf-8")
+    _fh.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    analog.addHandler(_fh)
+except Exception:
+    pass
+
+
+def _client_ip(request: Request) -> str:
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "?"
+
+
+def _device(ua: str) -> str:
+    ua = (ua or "").lower()
+    if "ipad" in ua or "tablet" in ua:
+        return "tablet"
+    if any(k in ua for k in ("mobile", "android", "iphone", "ipod")):
+        return "phone"
+    return "pc"
 
 
 # ── OCR client ───────────────────────────────────────────────────────────────
@@ -294,7 +329,8 @@ def _decode(data: bytes):
 
 
 @app.post("/analyze", response_class=HTMLResponse)
-async def do_analyze(file: UploadFile = File(None),
+async def do_analyze(request: Request,
+                     file: UploadFile = File(None),
                      model: str = Form(OCR_MODEL),
                      prep: str = Form("binarize"),
                      deskew: str = Form("off")):
@@ -318,6 +354,10 @@ async def do_analyze(file: UploadFile = File(None),
         overlay_uri, words, nw = analyze(cv2.cvtColor(prepped, cv2.COLOR_GRAY2BGR), model=model)
     except Exception as e:
         return render(f'<p style="color:#c00">Processing failed: {type(e).__name__}: {e}</p>', model=model)
+
+    recognized = sum(1 for w in words if w["ocr"])
+    analog.info(f"ip={_client_ip(request)} device={_device(request.headers.get('user-agent', ''))} "
+                f"words={nw} recognized={recognized} model={model} prep={prep}")
 
     craft_on = craft_available()
     ocr_on = ocr_available()

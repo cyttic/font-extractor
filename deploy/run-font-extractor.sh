@@ -16,7 +16,8 @@ if docker ps -a --format '{{.Names}}' | grep -qx "$NAME"; then
 else
   # container doesn't exist yet (first run) -> pull the latest image and create it
   docker pull "$IMAGE"
-  docker run -d --name "$NAME" --restart unless-stopped --network host "$IMAGE"
+  docker run -d --name "$NAME" --restart unless-stopped --network host \
+    -v "$HOME/fe-logs":/app/logs "$IMAGE"
 fi
 
 echo ">> status:"

@@ -161,6 +161,7 @@ def analyze(image_bgr, model: str = OCR_MODEL):
 
 # ── HTML ─────────────────────────────────────────────────────────────────────
 PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hebrew Handwriting → TrOCR → Words</title>
 <style>
  body{{font-family:system-ui,Arial,sans-serif;margin:24px;background:#faf8f3;color:#222}}
@@ -181,6 +182,16 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
  .spin{{width:48px;height:48px;border:5px solid #ddd;border-top-color:#2a7;border-radius:50%;animation:sp 1s linear infinite}}
  @keyframes sp{{to{{transform:rotate(360deg)}}}}
  #ovmsg{{margin-top:14px;font-weight:700}}
+ button{{background:#2a7;color:#fff;border:0;cursor:pointer;border-radius:8px;padding:8px 14px;font-size:15px}}
+ select{{font-size:15px;padding:6px 8px;border-radius:8px}}
+ .controls{{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px}}
+ .controls label{{display:inline-flex;align-items:center;gap:6px}}
+ @media (max-width:600px){{
+   body{{margin:12px}} h1{{font-size:18px}}
+   .controls{{flex-direction:column;align-items:stretch}}
+   .controls label,.controls select,.controls button{{width:100%}}
+   .word{{flex:1 1 100%}} .word .wimg{{height:64px}}
+ }}
 </style></head><body>
 <div id="ov"><div class="spin"></div><div id="ovmsg">Working…</div></div>
 <h1>Hebrew Handwriting → TrOCR → Words
@@ -195,17 +206,19 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
     <div class="fname" id="fname"></div>
     <input type="file" id="file" name="file" accept="image/*" style="display:none">
   </div>
-  <span class="muted" style="font-size:11px">(leave empty to re-run the last image)</span>
-  <label style="margin-left:12px">OCR model:
-    <select name="model">{model_options}</select></label>
-  <label style="margin-left:12px">Preprocess:
-    <select name="prep">
-      <option value="none">none</option>
-      <option value="clean" selected>clean</option>
-      <option value="binarize">binarize (Sauvola)</option>
-    </select></label>
-  <label style="margin-left:8px"><input type="checkbox" name="deskew" value="on" checked> deskew</label>
-  <button type="submit" style="margin-left:8px">Analyze</button>
+  <div class="muted" style="font-size:11px;margin-bottom:6px">(leave empty to re-run the last image)</div>
+  <div class="controls">
+    <label>OCR model:
+      <select name="model">{model_options}</select></label>
+    <label>Preprocess:
+      <select name="prep">
+        <option value="none">none</option>
+        <option value="clean" selected>clean</option>
+        <option value="binarize">binarize (Sauvola)</option>
+      </select></label>
+    <label><input type="checkbox" name="deskew" value="on" checked> deskew</label>
+    <button type="submit">Analyze</button>
+  </div>
 </form>
 {result}
 <script>

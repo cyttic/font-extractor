@@ -173,15 +173,28 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
  .reading{{font-size:24px;font-weight:700;margin-bottom:4px}}
  .badge{{font-size:13px;font-weight:700}}
  .legend{{font-size:12px}} .legend b{{padding:1px 6px;border-radius:4px;color:#fff}}
+ .drop{{border:2px dashed #bbb;border-radius:10px;padding:18px;text-align:center;cursor:pointer;background:#fafafa;transition:.15s;margin-bottom:10px}}
+ .drop.drag{{border-color:#2a7;background:#eefaf2}}
+ .drop .hint{{color:#777;font-size:13px}} .drop .fname{{margin-top:6px;font-weight:600;color:#2a7}}
+ #ov{{position:fixed;inset:0;background:rgba(255,255,255,.86);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:99}}
+ #ov.on{{display:flex}}
+ .spin{{width:48px;height:48px;border:5px solid #ddd;border-top-color:#2a7;border-radius:50%;animation:sp 1s linear infinite}}
+ @keyframes sp{{to{{transform:rotate(360deg)}}}}
+ #ovmsg{{margin-top:14px;font-weight:700}}
 </style></head><body>
+<div id="ov"><div class="spin"></div><div id="ovmsg">Working…</div></div>
 <h1>Hebrew Handwriting → TrOCR → Words
  <span class="muted">(CRAFT finds words; TrOCR reads them; border = OCR confidence)</span></h1>
 <p class="legend">
  <b style="background:#22aa77">≥ 90% green</b>
  <b style="background:#e0a000">30–90% orange</b>
  <b style="background:#cc0000">&lt; 30% red</b></p>
-<form action="/analyze" method="post" enctype="multipart/form-data">
-  <input type="file" name="file" accept="image/*">
+<form id="f" action="/analyze" method="post" enctype="multipart/form-data">
+  <div class="drop" id="drop">
+    <div class="hint">Drag &amp; drop an image here, or click to choose a file</div>
+    <div class="fname" id="fname"></div>
+    <input type="file" id="file" name="file" accept="image/*" style="display:none">
+  </div>
   <span class="muted" style="font-size:11px">(leave empty to re-run the last image)</span>
   <label style="margin-left:12px">OCR model:
     <select name="model">{model_options}</select></label>
@@ -195,6 +208,21 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
   <button type="submit" style="margin-left:8px">Analyze</button>
 </form>
 {result}
+<script>
+(function(){{
+  var drop=document.getElementById('drop'),file=document.getElementById('file'),
+      fname=document.getElementById('fname'),form=document.getElementById('f'),
+      ov=document.getElementById('ov'),msg=document.getElementById('ovmsg');
+  function show(){{ fname.textContent = file.files.length ? ('✓ '+file.files[0].name) : ''; }}
+  drop.addEventListener('click', function(){{ file.click(); }});
+  file.addEventListener('change', show);
+  ['dragenter','dragover'].forEach(function(e){{ drop.addEventListener(e, function(ev){{ ev.preventDefault(); drop.classList.add('drag'); }}); }});
+  ['dragleave','drop'].forEach(function(e){{ drop.addEventListener(e, function(ev){{ ev.preventDefault(); drop.classList.remove('drag'); }}); }});
+  drop.addEventListener('drop', function(ev){{ if(ev.dataTransfer.files.length){{ file.files = ev.dataTransfer.files; show(); }} }});
+  var stages=['Preprocessing image…','Detecting words (CRAFT)…','Recognizing text (OCR)…','Almost done…'],i=0;
+  form.addEventListener('submit', function(){{ i=0; msg.textContent=stages[0]; ov.classList.add('on'); setInterval(function(){{ i=Math.min(i+1,stages.length-1); msg.textContent=stages[i]; }},1500); }});
+}})();
+</script>
 </body></html>"""
 
 

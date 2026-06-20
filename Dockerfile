@@ -1,7 +1,7 @@
 # Thin serving image for the Hebrew-handwriting demo (src/app.py — FastAPI on :80).
-# CRAFT detection and TrOCR both run OFF the VM via reverse SSH tunnels
-# (127.0.0.1:9001 CRAFT, 127.0.0.1:8001 TrOCR), so this image carries NO torch and
-# NO model weights — it stays small and starts fast. Only image I/O + the web app.
+# CRAFT detection AND TrOCR both run OFF the VM on the backend model server, reached
+# over the reverse SSH tunnel at 127.0.0.1:8001 (/detect for boxes, /ocr for text),
+# so this image carries NO torch and NO model weights — it stays small and fast.
 FROM python:3.12-slim
 
 # opencv-python-headless still needs libglib2.0-0 at import time.

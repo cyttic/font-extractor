@@ -29,9 +29,9 @@ OCR_URL = "http://127.0.0.1:8001"
 OCR_MODEL = "trocr-hebrew-matan-exp7"
 OCR_BEAMS = 4
 
-# CRAFT word detection runs OFF the VM — on a local server reached through the
-# reverse SSH tunnel (VM:9001 -> notebook:9001). Keeps torch/CRAFT off the VM.
-CRAFT_URL = "http://127.0.0.1:9001"
+# CRAFT word detection runs OFF the VM, served by the SAME backend as OCR on
+# :8001 (one reverse SSH tunnel). The model server exposes a /detect endpoint.
+CRAFT_URL = "http://127.0.0.1:8001"
 
 # confidence thresholds for the word border
 CONF_GREEN = 0.90
@@ -248,13 +248,13 @@ async def do_analyze(file: UploadFile = File(None),
     overlay_uri, words, nw = analyze(cv2.cvtColor(prepped, cv2.COLOR_GRAY2BGR), model=model)
 
     craft_on = craft_available()
-    ocr_on = any(w["ocr"] is not None for w in words)
-    craft_banner = ('' if craft_on else
-                    '<p style="color:#c00">CRAFT server not reachable on :9001 — '
-                    'start the local detection server (src/craft_server.py).</p>')
-    banner = craft_banner + (
-        f'<p style="color:#2a7">TrOCR connected (<b>{model}</b>).</p>' if ocr_on
-        else '<p style="color:#c00">TrOCR server not reachable on :8001 — start it; this mode needs it.</p>')
+    ocr_on = ocr_available()
+    craft_banner = ('<p style="color:#2a7">CRAFT connected (:8001 /detect).</p>' if craft_on else
+                    '<p style="color:#c00">CRAFT not reachable on :8001 /detect — '
+                    'restart the backend model server (it now also runs CRAFT).</p>')
+    ocr_banner = (f'<p style="color:#2a7">TrOCR connected (<b>{model}</b>).</p>' if ocr_on
+                  else '<p style="color:#c00">TrOCR server not reachable on :8001 — start it; this mode needs it.</p>')
+    banner = craft_banner + ocr_banner
     green_n = sum(1 for w in words if w["conf"] is not None and w["conf"] >= CONF_GREEN)
 
     word_html = []

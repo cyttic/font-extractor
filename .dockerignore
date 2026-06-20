@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+**/__pycache__
+*.pyc
+data
+output
+models
+notebooks
+*.zip
+*.tar
+.gitignore
+README.md
+KAGGLE.md
+*_SPEC.md
+MEMORY.md

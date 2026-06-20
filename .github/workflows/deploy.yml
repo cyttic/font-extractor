@@ -11,8 +11,10 @@ name: Build & Deploy to Azure VM
 #
 # Optional secrets/vars (have sane defaults below):
 #   AZURE_VM_SSH_PORT    SSH port (default 22)
-#   VM_MODELS_DIR        host dir holding craft_mlt_25k.pth (default /opt/font-extractor/models)
+#   CRAFT_GDRIVE_ID      override the CRAFT weights source (repo variable; default in Dockerfile)
 #
+# The CRAFT weights are downloaded at build time and baked into the image, so the
+# VM receives them automatically on `docker pull` — nothing to place on the VM.
 # The container runs with --network host so 127.0.0.1:8001 inside the container
 # reaches the TrOCR server on the VM's existing SSH tunnel. App listens on :8000.
 
@@ -47,6 +49,8 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            ${{ vars.CRAFT_GDRIVE_ID && format('CRAFT_GDRIVE_ID={0}', vars.CRAFT_GDRIVE_ID) || '' }}
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}
@@ -68,7 +72,6 @@ jobs:
           script: |
             set -e
             IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/font-extractor:latest"
-            MODELS_DIR="${{ secrets.VM_MODELS_DIR || '/opt/font-extractor/models' }}"
 
             docker pull "$IMAGE"
             docker stop font-extractor 2>/dev/null || true
@@ -77,7 +80,6 @@ jobs:
               --name font-extractor \
               --restart unless-stopped \
               --network host \
-              -v "$MODELS_DIR":/app/models:ro \
               "$IMAGE"
 
             docker image prune -f

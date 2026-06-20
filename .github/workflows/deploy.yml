@@ -16,7 +16,7 @@ name: Build & Deploy to Azure VM
 # pulls them and the Dockerfile COPYs them into the image, so the VM receives them
 # automatically on `docker pull` — nothing to place on the VM, no external fetch.
 # The container runs with --network host so 127.0.0.1:8001 inside the container
-# reaches the TrOCR server on the VM's existing SSH tunnel. App listens on :8000.
+# reaches the TrOCR server on the VM's existing SSH tunnel. App listens on :80.
 
 on:
   push:

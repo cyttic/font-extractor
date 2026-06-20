@@ -1,4 +1,4 @@
-# Serving image for the Hebrew-handwriting demo (src/app.py — FastAPI on :8000).
+# Serving image for the Hebrew-handwriting demo (src/app.py — FastAPI on :80).
 # Only the runtime path is installed: CRAFT word detection + the FastAPI web app.
 # The CRAFT weights (craft_mlt_25k.pth) are stored in the repo via Git LFS and
 # copied into the image below, so it is self-contained and the VM gets them
@@ -30,5 +30,7 @@ COPY src/ ./src/
 COPY third_party/ ./third_party/
 COPY config.yaml ./config.yaml
 
-EXPOSE 8000
-CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Serve on port 80 so the bare host URL works (http://<vm-ip>/). Binding the
+# privileged port is fine: --network host + the container runs as root.
+EXPOSE 80
+CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "80"]

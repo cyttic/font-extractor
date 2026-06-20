@@ -23,20 +23,19 @@ from fastapi.responses import HTMLResponse
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from run_craft import load_net, score_maps, boxes_from_scores
 from preprocess import preprocess
 
 OCR_URL = "http://127.0.0.1:8001"
 OCR_MODEL = "trocr-hebrew-matan-exp7"
 OCR_BEAMS = 4
 
+# CRAFT word detection runs OFF the VM — on a local server reached through the
+# reverse SSH tunnel (VM:9001 -> notebook:9001). Keeps torch/CRAFT off the VM.
+CRAFT_URL = "http://127.0.0.1:9001"
+
 # confidence thresholds for the word border
 CONF_GREEN = 0.90
 CONF_RED = 0.30
-
-print("loading CRAFT ...")
-NET = load_net()                                   # stock model: robust WORD detection
-print("ready.")
 
 app = FastAPI(title="Hebrew Handwriting → TrOCR → Words")
 
@@ -80,6 +79,29 @@ def ocr_word(gray_crop, model: str = OCR_MODEL):
         return None
 
 
+# ── CRAFT client (remote word detection) ─────────────────────────────────────
+def craft_available() -> bool:
+    try:
+        return requests.get(f"{CRAFT_URL}/health", timeout=2).status_code == 200
+    except Exception:
+        return False
+
+
+def detect_words(image_bgr) -> list[tuple[int, int, int, int]]:
+    """POST the page to the remote CRAFT server; get back word bounding boxes
+    (x0, y0, x1, y1) in this image's pixel coordinates."""
+    ok, buf = cv2.imencode(".png", image_bgr)
+    try:
+        r = requests.post(f"{CRAFT_URL}/detect",
+                          files={"file": ("page.png", buf.tobytes(), "image/png")},
+                          timeout=60)
+        if r.status_code != 200:
+            return []
+        return [tuple(int(v) for v in b) for b in r.json().get("boxes", [])]
+    except Exception:
+        return []
+
+
 def word_colors(c):
     """(css_hex, bgr_tuple) for a confidence value: green / orange / red / gray."""
     if c is None:
@@ -92,11 +114,6 @@ def word_colors(c):
 
 
 # ── geometry helpers ─────────────────────────────────────────────────────────
-def bbox(poly):
-    p = np.array(poly)
-    return int(p[:, 0].min()), int(p[:, 1].min()), int(p[:, 0].max()), int(p[:, 1].max())
-
-
 def cx(b): return (b[0] + b[2]) / 2
 def cy(b): return (b[1] + b[3]) / 2
 
@@ -127,9 +144,7 @@ def png_b64(img) -> str:
 # ── core ─────────────────────────────────────────────────────────────────────
 def analyze(image_bgr, model: str = OCR_MODEL):
     gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
-    rgb = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
-    st, sl, ratio = score_maps(NET, rgb)
-    word_boxes = [bbox(b) for b in boxes_from_scores(st, sl, ratio, 0.7, 0.4, 0.4)]
+    word_boxes = detect_words(image_bgr)               # remote CRAFT -> word boxes
 
     overlay = image_bgr.copy()
     words = []
@@ -232,9 +247,14 @@ async def do_analyze(file: UploadFile = File(None),
     prep_uri = png_b64(prepped)
     overlay_uri, words, nw = analyze(cv2.cvtColor(prepped, cv2.COLOR_GRAY2BGR), model=model)
 
+    craft_on = craft_available()
     ocr_on = any(w["ocr"] is not None for w in words)
-    banner = (f'<p style="color:#2a7">TrOCR connected (<b>{model}</b>).</p>' if ocr_on
-              else '<p style="color:#c00">TrOCR server not reachable on :8001 — start it; this mode needs it.</p>')
+    craft_banner = ('' if craft_on else
+                    '<p style="color:#c00">CRAFT server not reachable on :9001 — '
+                    'start the local detection server (src/craft_server.py).</p>')
+    banner = craft_banner + (
+        f'<p style="color:#2a7">TrOCR connected (<b>{model}</b>).</p>' if ocr_on
+        else '<p style="color:#c00">TrOCR server not reachable on :8001 — start it; this mode needs it.</p>')
     green_n = sum(1 for w in words if w["conf"] is not None and w["conf"] >= CONF_GREEN)
 
     word_html = []

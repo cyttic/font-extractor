@@ -12,11 +12,12 @@ name: Build & Deploy to Azure VM
 # Optional secrets/vars (have sane defaults below):
 #   AZURE_VM_SSH_PORT    SSH port (default 22)
 #
-# The CRAFT weights (craft_mlt_25k.pth) live in the repo via Git LFS; checkout
-# pulls them and the Dockerfile COPYs them into the image, so the VM receives them
-# automatically on `docker pull` — nothing to place on the VM, no external fetch.
-# The container runs with --network host so 127.0.0.1:8001 inside the container
-# reaches the TrOCR server on the VM's existing SSH tunnel. App listens on :80.
+# CRAFT detection is OFFLOADED to a local server (src/craft_server.py) reached over
+# a reverse SSH tunnel (VM:9001), and TrOCR likewise on VM:8001 — so the VM image
+# carries NO torch/weights and stays small + fast. The craft_mlt_25k.pth weight
+# stays in the repo (Git LFS) only for running craft_server locally.
+# The container runs with --network host so 127.0.0.1:9001 (CRAFT) and
+# 127.0.0.1:8001 (TrOCR) inside the container reach those tunnels. App listens on :80.
 
 on:
   push:
@@ -30,10 +31,8 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (with LFS — pulls the real craft_mlt_25k.pth)
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          lfs: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

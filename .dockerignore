@@ -6,7 +6,6 @@
 data
 output
 models
-!models/craft_mlt_25k.pth
 notebooks
 *.zip
 *.tar

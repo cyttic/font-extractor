@@ -1,9 +1,7 @@
-# Serving image for the Hebrew-handwriting demo (src/app.py — FastAPI on :80).
-# Only the runtime path is installed: CRAFT word detection + the FastAPI web app.
-# The CRAFT weights (craft_mlt_25k.pth) are stored in the repo via Git LFS and
-# copied into the image below, so it is self-contained and the VM gets them
-# automatically on pull. Build context must contain the real file, so CI checks
-# out with lfs: true (see .github/workflows/deploy.yml).
+# Thin serving image for the Hebrew-handwriting demo (src/app.py — FastAPI on :80).
+# CRAFT detection and TrOCR both run OFF the VM via reverse SSH tunnels
+# (127.0.0.1:9001 CRAFT, 127.0.0.1:8001 TrOCR), so this image carries NO torch and
+# NO model weights — it stays small and starts fast. Only image I/O + the web app.
 FROM python:3.12-slim
 
 # opencv-python-headless still needs libglib2.0-0 at import time.
@@ -13,21 +11,11 @@ RUN apt-get update \
 
 WORKDIR /app
 
-# CPU-only torch keeps the image small (no CUDA), then the rest of the runtime deps.
-RUN pip install --no-cache-dir torch torchvision \
-        --index-url https://download.pytorch.org/whl/cpu \
-    && pip install --no-cache-dir \
+RUN pip install --no-cache-dir \
         fastapi "uvicorn[standard]" python-multipart requests \
-        opencv-python-headless numpy pillow scikit-image scipy pyyaml
+        opencv-python-headless numpy pillow scikit-image scipy
 
-# CRAFT "General" weights — stored in the repo via Git LFS and copied straight in,
-# so the image is self-contained with no external download at build time. (CI must
-# check out with lfs: true so this is the real file, not a 130-byte LFS pointer.)
-COPY models/craft_mlt_25k.pth ./models/craft_mlt_25k.pth
-
-# App code + the vendored CRAFT inference code.
 COPY src/ ./src/
-COPY third_party/ ./third_party/
 COPY config.yaml ./config.yaml
 
 # Serve on port 80 so the bare host URL works (http://<vm-ip>/). Binding the

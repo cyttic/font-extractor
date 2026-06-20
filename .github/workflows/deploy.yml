@@ -11,10 +11,10 @@ name: Build & Deploy to Azure VM
 #
 # Optional secrets/vars (have sane defaults below):
 #   AZURE_VM_SSH_PORT    SSH port (default 22)
-#   CRAFT_GDRIVE_ID      override the CRAFT weights source (repo variable; default in Dockerfile)
 #
-# The CRAFT weights are downloaded at build time and baked into the image, so the
-# VM receives them automatically on `docker pull` — nothing to place on the VM.
+# The CRAFT weights (craft_mlt_25k.pth) live in the repo via Git LFS; checkout
+# pulls them and the Dockerfile COPYs them into the image, so the VM receives them
+# automatically on `docker pull` — nothing to place on the VM, no external fetch.
 # The container runs with --network host so 127.0.0.1:8001 inside the container
 # reaches the TrOCR server on the VM's existing SSH tunnel. App listens on :8000.
 
@@ -30,8 +30,10 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout (with LFS — pulls the real craft_mlt_25k.pth)
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -47,8 +49,6 @@ jobs:
         with:
           context: .
           push: true
-          build-args: |
-            ${{ vars.CRAFT_GDRIVE_ID && format('CRAFT_GDRIVE_ID={0}', vars.CRAFT_GDRIVE_ID) || '' }}
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}

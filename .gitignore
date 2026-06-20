@@ -6,6 +6,7 @@ data/crops/*
 data/scans/*
 !data/**/.gitkeep
 models/*.pth
+!models/craft_mlt_25k.pth
 output/overlays/*
 output/*.ttf
 !output/**/.gitkeep

@@ -215,9 +215,8 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
       <select name="model">{model_options}</select></label>
     <label>Preprocess:
       <select name="prep">
-        <option value="none">none</option>
-        <option value="clean" selected>clean</option>
-        <option value="binarize">binarize (Sauvola)</option>
+        <option value="clean">clean</option>
+        <option value="binarize" selected>binarize (Sauvola)</option>
       </select></label>
     <label><input type="checkbox" name="deskew" value="on" checked> deskew</label>
     <button type="submit">Analyze</button>
@@ -257,6 +256,23 @@ def index():
     return render()
 
 
+# Phone photos are huge (often 12 MP); the small VM OOMs building the overlay +
+# base64. Cap the longest side so detection / preview / encoding stay light.
+_MAX_SIDE = 1800
+
+
+def _fit(arr):
+    if arr is None:
+        return None
+    h, w = arr.shape[:2]
+    m = max(h, w)
+    if m > _MAX_SIDE:
+        s = _MAX_SIDE / float(m)
+        arr = cv2.resize(arr, (max(1, round(w * s)), max(1, round(h * s))),
+                         interpolation=cv2.INTER_AREA)
+    return arr
+
+
 def _decode(data: bytes):
     arr = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
     if arr is None:
@@ -268,13 +284,13 @@ def _decode(data: bytes):
             arr = cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
         except Exception:
             arr = None
-    return arr
+    return _fit(arr)
 
 
 @app.post("/analyze", response_class=HTMLResponse)
 async def do_analyze(file: UploadFile = File(None),
                      model: str = Form(OCR_MODEL),
-                     prep: str = Form("clean"),
+                     prep: str = Form("binarize"),
                      deskew: str = Form("off")):
     global LAST_IMAGE
     arr = None
@@ -290,9 +306,12 @@ async def do_analyze(file: UploadFile = File(None),
     if arr is None:
         return render('<p style="color:#c00">Upload an image to analyze.</p>', model=model)
 
-    prepped = preprocess(arr, mode=prep, do_deskew=(deskew == "on"))
-    prep_uri = png_b64(prepped)
-    overlay_uri, words, nw = analyze(cv2.cvtColor(prepped, cv2.COLOR_GRAY2BGR), model=model)
+    try:
+        prepped = preprocess(arr, mode=prep, do_deskew=(deskew == "on"))
+        prep_uri = png_b64(prepped)
+        overlay_uri, words, nw = analyze(cv2.cvtColor(prepped, cv2.COLOR_GRAY2BGR), model=model)
+    except Exception as e:
+        return render(f'<p style="color:#c00">Processing failed: {type(e).__name__}: {e}</p>', model=model)
 
     craft_on = craft_available()
     ocr_on = ocr_available()

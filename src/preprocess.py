@@ -46,12 +46,18 @@ def flatten_illumination(gray):
     return norm
 
 
-def sauvola(gray, window=25, k=0.2):
-    from skimage.filters import threshold_sauvola
+def sauvola(gray, window=25, k=0.2, R=128.0):
+    """Sauvola adaptive threshold via OpenCV box filters (no scikit-image dep).
+
+    T(x,y) = mean * (1 + k*(std/R - 1)).  dark text -> 0, background -> 255.
+    """
     win = window if window % 2 == 1 else window + 1
-    th = threshold_sauvola(gray, window_size=win, k=k)
-    binary = (gray > th).astype(np.uint8) * 255      # dark text -> 0, background -> 255
-    return binary
+    g = gray.astype(np.float32)
+    mean = cv2.boxFilter(g, -1, (win, win), borderType=cv2.BORDER_REPLICATE)
+    mean_sq = cv2.boxFilter(g * g, -1, (win, win), borderType=cv2.BORDER_REPLICATE)
+    std = np.sqrt(np.maximum(mean_sq - mean * mean, 0.0))
+    th = mean * (1.0 + k * (std / R - 1.0))
+    return (g > th).astype(np.uint8) * 255
 
 
 def preprocess(img, mode="clean", do_deskew=True):

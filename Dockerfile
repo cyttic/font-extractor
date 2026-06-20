@@ -13,7 +13,7 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir \
         fastapi "uvicorn[standard]" python-multipart requests \
-        opencv-python-headless numpy pillow scikit-image scipy
+        opencv-python-headless numpy pillow
 
 COPY src/ ./src/
 COPY config.yaml ./config.yaml

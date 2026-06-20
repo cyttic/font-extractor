@@ -144,12 +144,18 @@ def png_b64(img) -> str:
 # ── core ─────────────────────────────────────────────────────────────────────
 def analyze(image_bgr, model: str = OCR_MODEL):
     gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+    H, W = gray.shape[:2]
     word_boxes = detect_words(image_bgr)               # remote CRAFT -> word boxes
 
     overlay = image_bgr.copy()
     words = []
     for wb in reading_order(word_boxes):
         x0, y0, x1, y1 = wb
+        # clamp to image bounds and skip degenerate boxes — an empty crop crashes imencode
+        x0, x1 = max(0, min(x0, W)), max(0, min(x1, W))
+        y0, y1 = max(0, min(y0, H)), max(0, min(y1, H))
+        if x1 - x0 < 2 or y1 - y0 < 2:
+            continue
         word_crop = gray[y0:y1, x0:x1]
         res = ocr_word(word_crop, model=model)
         text, conf = res if res else (None, None)

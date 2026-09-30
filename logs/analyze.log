@@ -1,0 +1,8 @@
+2026-09-29 10:39:10,095 ip=127.0.0.1 device=pc words=40 recognized=40 model=mishkefet-v1 prep=binarize
+2026-09-29 10:41:14,789 ip=127.0.0.1 device=pc words=181 recognized=181 model=mishkefet-v1 prep=binarize
+2026-09-29 10:42:30,866 ip=127.0.0.1 device=pc words=8 recognized=8 model=mishkefet-v1 prep=binarize
+2026-09-29 10:43:04,581 ip=127.0.0.1 device=pc words=8 recognized=8 model=trocr-hebrew-matan-exp7 prep=binarize
+2026-09-29 10:43:40,848 ip=127.0.0.1 device=pc words=10 recognized=10 model=trocr-hebrew-matan-exp7 prep=binarize
+2026-09-29 10:44:07,099 ip=127.0.0.1 device=pc words=10 recognized=10 model=mishkefet-v1 prep=binarize
+2026-09-29 10:45:00,519 ip=127.0.0.1 device=pc words=29 recognized=29 model=mishkefet-v1 prep=binarize
+2026-09-29 10:48:47,741 ip=127.0.0.1 device=pc words=29 recognized=23 model=trocr-hebrew-matan-exp7 prep=binarize

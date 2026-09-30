@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""FastAPI demo — TrOCR word finder.
+"""FastAPI demo — Hebrew handwriting page reader.
 
-Pipeline:
-  preprocess -> CRAFT splits the page into WORDS (reading order, RTL + top-to-bottom)
-  -> TrOCR reads each word + confidence.
+Two modes:
+  lines (default)  the backend /read_page finds the text LINES on the photo, reads every line
+                   with the line model and assembles the page text (reading order, RTL).
+  words            preprocess -> CRAFT splits the page into WORDS (reading order, RTL +
+                   top-to-bottom) -> each word is read separately + confidence.
 Each word box is colored by OCR confidence:
   >= 90% green · < 30% red · otherwise orange.
 
@@ -137,6 +139,45 @@ def detect_words(image_bgr) -> list[tuple[int, int, int, int]]:
         return []
 
 
+# ── page reader client (remote line finding + line recognition) ─────────────
+def read_page_remote(image_bgr):
+    """POST the page photo to the backend /read_page; returns its JSON or None."""
+    ok, buf = cv2.imencode(".jpg", image_bgr, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    try:
+        r = requests.post(f"{OCR_URL}/read_page",
+                          files={"file": ("page.jpg", buf.tobytes(), "image/jpeg")},
+                          timeout=240)
+        if r.status_code != 200:
+            return {"error": f"HTTP {r.status_code}: {r.text[:200]}"}
+        return r.json()
+    except Exception as e:
+        return {"error": f"{type(e).__name__}: {e}"}
+
+
+def analyze_lines(image_bgr):
+    """-> (overlay data-URI, line dicts with crop/text/conf, page result JSON)."""
+    res = read_page_remote(image_bgr)
+    if not res or "error" in res:
+        return None, [], res or {"error": "no response"}
+    overlay = image_bgr.copy()
+    H, W = image_bgr.shape[:2]
+    th = max(2, round(max(H, W) / 600))
+    lines = []
+    for i, ln in enumerate(res.get("lines", []), 1):
+        pts = np.array(ln["polygon"], np.int32)
+        conf = ln.get("confidence")
+        _, col_bgr = word_colors(conf)
+        cv2.polylines(overlay, [pts], True, col_bgr, th)
+        cv2.putText(overlay, str(i), (int(pts[:, 0].max()) + 4, int(pts[:, 1].mean()) + 8),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.9 * th / 2, col_bgr, th)
+        x0, y0 = max(0, int(pts[:, 0].min())), max(0, int(pts[:, 1].min()))
+        x1, y1 = min(W, int(pts[:, 0].max())), min(H, int(pts[:, 1].max()))
+        crop = image_bgr[y0:y1, x0:x1] if (x1 - x0 > 2 and y1 - y0 > 2) else None
+        lines.append({"n": i, "crop": png_b64(crop) if crop is not None else "",
+                      "text": ln.get("text", ""), "conf": conf})
+    return png_b64(overlay), lines, res
+
+
 def word_colors(c):
     """(css_hex, bgr_tuple) for a confidence value: green / orange / red / gray."""
     if c is None:
@@ -203,7 +244,7 @@ def analyze(image_bgr, model: str = OCR_MODEL):
 # ── HTML ─────────────────────────────────────────────────────────────────────
 PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hebrew Handwriting → TrOCR → Words</title>
+<title>Hebrew Handwriting → Text</title>
 <style>
  body{{font-family:system-ui,Arial,sans-serif;margin:24px;background:#faf8f3;color:#222}}
  h1{{font-size:20px}} h2{{font-size:16px;margin-top:26px}} .muted{{color:#777}}
@@ -228,6 +269,12 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
  .cam{{margin-top:8px;background:#fff;color:#2a7;border:1px solid #2a7;border-radius:8px;padding:8px 14px;font-size:15px;cursor:pointer}}
  .controls{{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px}}
  .controls label{{display:inline-flex;align-items:center;gap:6px}}
+ .pagetext{{direction:rtl;text-align:right;font-size:22px;line-height:1.7;background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px 16px;white-space:pre-wrap}}
+ .tabs{{display:flex;gap:8px;margin:8px 0}} .tabs button{{background:#fff;color:#2a7;border:1px solid #2a7}} .tabs button.on{{background:#2a7;color:#fff}}
+ .lines{{display:flex;flex-direction:column;gap:10px;margin-top:10px}}
+ .line{{border-right:6px solid #ddd;border-radius:8px;background:#fff;padding:8px 10px;direction:rtl}}
+ .line img{{max-width:100%;max-height:70px;display:block;margin-bottom:4px}}
+ .line .t{{font-size:20px;font-weight:600}} .line .m{{font-size:12px;color:#777}}
  @media (max-width:600px){{
    body{{margin:12px}} h1{{font-size:18px}}
    .controls{{flex-direction:column;align-items:stretch}}
@@ -236,8 +283,8 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
  }}
 </style></head><body>
 <div id="ov"><div class="spin"></div><div id="ovmsg">Working…</div></div>
-<h1>Hebrew Handwriting → TrOCR → Words
- <span class="muted">(CRAFT finds words; TrOCR reads them; border = OCR confidence)</span></h1>
+<h1>Hebrew Handwriting → Text
+ <span class="muted">(finds the lines on the page, reads each one, border = confidence)</span></h1>
 <p class="legend">
  <b style="background:#22aa77">≥ 90% green</b>
  <b style="background:#e0a000">30–90% orange</b>
@@ -252,6 +299,11 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
   <input type="file" id="cam" accept="image/*" capture="environment" style="display:none">
   <div class="muted" style="font-size:11px;margin-bottom:6px">(leave empty to re-run the last image)</div>
   <div class="controls">
+    <label>Mode:
+      <select name="mode" id="mode">
+        <option value="lines"{sel_lines}>Lines → text</option>
+        <option value="words"{sel_words}>Words (each word separately)</option>
+      </select></label>
     <label>OCR model:
       <select name="model">{model_options}</select></label>
     <label>Preprocess:
@@ -278,18 +330,31 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
   var cam=document.getElementById('cam'),camBtn=document.getElementById('camBtn');
   camBtn.addEventListener('click', function(){{ cam.click(); }});
   cam.addEventListener('change', function(){{ if(cam.files.length){{ file.files = cam.files; show(); }} }});
-  var stages=['Preprocessing image…','Detecting words (CRAFT)…','Recognizing text (OCR)…','Almost done…'],i=0;
-  form.addEventListener('submit', function(){{ i=0; msg.textContent=stages[0]; ov.classList.add('on'); setInterval(function(){{ i=Math.min(i+1,stages.length-1); msg.textContent=stages[i]; }},1500); }});
+  var modeSel=document.getElementById('mode');
+  function stagesFor(){{ return modeSel.value==='lines'
+      ? ['Uploading page…','Finding text lines…','Reading every line…','Assembling the text…']
+      : ['Preprocessing image…','Detecting words (CRAFT)…','Recognizing text (OCR)…','Almost done…']; }}
+  form.addEventListener('submit', function(){{ var stages=stagesFor(),i=0; msg.textContent=stages[0]; ov.classList.add('on'); setInterval(function(){{ i=Math.min(i+1,stages.length-1); msg.textContent=stages[i]; }},2000); }});
+  var tf=document.getElementById('tabFlow'),tl=document.getElementById('tabLines'),
+      pf=document.getElementById('pFlow'),pl=document.getElementById('pLines'),cp=document.getElementById('copyBtn');
+  if(tf){{
+    tf.addEventListener('click',function(){{ pf.style.display='';pl.style.display='none';tf.classList.add('on');tl.classList.remove('on'); }});
+    tl.addEventListener('click',function(){{ pl.style.display='';pf.style.display='none';tl.classList.add('on');tf.classList.remove('on'); }});
+    cp.addEventListener('click',function(){{ var t=(pf.style.display==='none'?pl:pf).innerText;
+      if(navigator.clipboard){{ navigator.clipboard.writeText(t).then(function(){{ cp.textContent='✓ Copied'; }}); }} }});
+  }}
 }})();
 </script>
 </body></html>"""
 
 
-def render(result="", model: str = OCR_MODEL):
+def render(result="", model: str = OCR_MODEL, mode: str = "lines"):
     opts = "".join(
         f'<option value="{m}"{" selected" if m == model else ""}>{m}</option>'
         for m in ocr_models())
-    return PAGE.format(result=result, model_options=opts)
+    return PAGE.format(result=result, model_options=opts,
+                       sel_lines=" selected" if mode == "lines" else "",
+                       sel_words=" selected" if mode == "words" else "")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -333,7 +398,8 @@ async def do_analyze(request: Request,
                      file: UploadFile = File(None),
                      model: str = Form(OCR_MODEL),
                      prep: str = Form("binarize"),
-                     deskew: str = Form("off")):
+                     deskew: str = Form("off"),
+                     mode: str = Form("lines")):
     global LAST_IMAGE
     arr = None
     if file is not None:
@@ -341,19 +407,22 @@ async def do_analyze(request: Request,
         if data:
             arr = _decode(data)
             if arr is None:
-                return render('<p style="color:#c00">Could not read that image.</p>', model=model)
+                return render('<p style="color:#c00">Could not read that image.</p>', model=model, mode=mode)
             LAST_IMAGE = arr
     if arr is None:                          # no new file -> re-run the previous image
         arr = LAST_IMAGE
     if arr is None:
-        return render('<p style="color:#c00">Upload an image to analyze.</p>', model=model)
+        return render('<p style="color:#c00">Upload an image to analyze.</p>', model=model, mode=mode)
+
+    if mode == "lines":
+        return _lines_result(request, arr, model)
 
     try:
         prepped = preprocess(arr, mode=prep, do_deskew=(deskew == "on"))
         prep_uri = png_b64(prepped)
         overlay_uri, words, nw = analyze(cv2.cvtColor(prepped, cv2.COLOR_GRAY2BGR), model=model)
     except Exception as e:
-        return render(f'<p style="color:#c00">Processing failed: {type(e).__name__}: {e}</p>', model=model)
+        return render(f'<p style="color:#c00">Processing failed: {type(e).__name__}: {e}</p>', model=model, mode=mode)
 
     recognized = sum(1 for w in words if w["ocr"])
     analog.info(f"ip={_client_ip(request)} device={_device(request.headers.get('user-agent', ''))} "
@@ -384,4 +453,41 @@ async def do_analyze(request: Request,
               f'<h2>Preprocessed</h2><div class="overlay"><img src="{prep_uri}"></div>'
               f'<h2>Detection</h2><div class="overlay"><img src="{overlay_uri}"></div>'
               f'<h2>Words</h2><div class="words">{"".join(word_html)}</div>')
-    return render(result, model=model)
+    return render(result, model=model, mode="words")
+
+
+def _lines_result(request, arr, model):
+    """Lines mode: the ORIGINAL photo (size-capped, no binarization) goes to /read_page, which
+    does its own line finding, deskew and recognition."""
+    import html
+    try:
+        overlay_uri, lines, res = analyze_lines(arr)
+    except Exception as e:
+        return render(f'<p style="color:#c00">Processing failed: {type(e).__name__}: {e}</p>', model=model)
+    if overlay_uri is None:
+        err = html.escape(str(res.get("error", "unknown error")))
+        return render(f'<p style="color:#c00">Page reader not reachable or failed ({err}). '
+                      f'The backend model server needs the /read_page endpoint.</p>', model=model)
+    analog.info(f"ip={_client_ip(request)} device={_device(request.headers.get('user-agent', ''))} "
+                f"mode=lines lines={len(lines)} sec={res.get('seconds')} model={res.get('model')}")
+    flow = html.escape(res.get("text", "")) or "—"
+    by_line = html.escape(res.get("text_lines", "")) or "—"
+    items = []
+    for ln in lines:
+        hexc, _ = word_colors(ln["conf"])
+        badge = f'{ln["conf"]*100:.0f}%' if ln["conf"] is not None else "—"
+        img = f'<img src="{ln["crop"]}">' if ln["crop"] else ""
+        items.append(f'<div class="line" style="border-right-color:{hexc}">{img}'
+                     f'<div class="t">{html.escape(ln["text"]) or "—"}</div>'
+                     f'<div class="m">line {ln["n"]} · <b style="color:{hexc}">{badge}</b></div></div>')
+    result = (f'<p><b>{len(lines)}</b> lines · {res.get("seconds", "?")} s · model=<b>{html.escape(str(res.get("model")))}</b> '
+              f'· line finder=<b>{html.escape(str(res.get("segmenter")))}</b></p>'
+              f'<h2>Text</h2>'
+              f'<div class="tabs"><button type="button" id="tabFlow" class="on">Paragraph</button>'
+              f'<button type="button" id="tabLines">Line by line</button>'
+              f'<button type="button" id="copyBtn">Copy</button></div>'
+              f'<div class="pagetext" id="pFlow">{flow}</div>'
+              f'<div class="pagetext" id="pLines" style="display:none">{by_line}</div>'
+              f'<h2>Detected lines</h2><div class="overlay"><img src="{overlay_uri}"></div>'
+              f'<h2>Lines</h2><div class="lines">{"".join(items)}</div>')
+    return render(result, model=model, mode="lines")

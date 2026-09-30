@@ -14,6 +14,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import os
 import torch
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -27,6 +28,8 @@ from craft import CRAFT
 OVER = ROOT / "output" / "overlays"
 OVER.mkdir(parents=True, exist_ok=True)
 
+# GPU when available (the backend model server); CRAFT_DEVICE=cpu forces CPU
+DEVICE = os.environ.get("CRAFT_DEVICE") or ("cuda" if torch.cuda.is_available() else "cpu")
 CANVAS_SIZE = 1280
 MAG_RATIO = 3.0          # line crops are short; magnify so CRAFT sees the text big enough
 
@@ -42,8 +45,8 @@ def load_net(name="craft_mlt_25k.pth"):
     weights = ROOT / "models" / name
     net = CRAFT()
     net.load_state_dict(copy_state(torch.load(weights, map_location="cpu")))
-    net.eval()
-    print(f"[craft] loaded {weights.name}")
+    net.to(DEVICE).eval()
+    print(f"[craft] loaded {weights.name} on {DEVICE}")
     return net
 
 
@@ -53,8 +56,9 @@ def score_maps(net, image, mag_ratio=MAG_RATIO):
         image, CANVAS_SIZE, interpolation=cv2.INTER_LINEAR, mag_ratio=mag_ratio)
     x = imgproc.normalizeMeanVariance(img_resized)
     x = torch.from_numpy(x).permute(2, 0, 1).unsqueeze(0)
+    dev = next(net.parameters()).device
     with torch.no_grad():
-        y, _ = net(x)
+        y, _ = net(x.to(dev))
     return y[0, :, :, 0].cpu().numpy(), y[0, :, :, 1].cpu().numpy(), 1 / target_ratio
 
 

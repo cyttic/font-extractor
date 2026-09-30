@@ -6,3 +6,4 @@
 2026-09-29 10:44:07,099 ip=127.0.0.1 device=pc words=10 recognized=10 model=mishkefet-v1 prep=binarize
 2026-09-29 10:45:00,519 ip=127.0.0.1 device=pc words=29 recognized=29 model=mishkefet-v1 prep=binarize
 2026-09-29 10:48:47,741 ip=127.0.0.1 device=pc words=29 recognized=23 model=trocr-hebrew-matan-exp7 prep=binarize
+2026-09-30 11:05:15,190 ip=127.0.0.1 device=pc mode=lines lines=21 sec=4.29 model=exp35-ctc-large-en-punctdec

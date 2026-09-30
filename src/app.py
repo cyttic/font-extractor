@@ -270,6 +270,8 @@ PAGE = """<!doctype html><html lang="he"><head><meta charset="utf-8">
  .controls{{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px}}
  .controls label{{display:inline-flex;align-items:center;gap:6px}}
  .pagetext{{direction:rtl;text-align:right;font-size:22px;line-height:1.7;background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px 16px;white-space:pre-wrap}}
+ .pagetext ol.numbered{{margin:0;padding-right:2.4em;white-space:normal}}
+ .pagetext ol.numbered li::marker{{color:#999;font-size:15px}}
  .tabs{{display:flex;gap:8px;margin:8px 0}} .tabs button{{background:#fff;color:#2a7;border:1px solid #2a7}} .tabs button.on{{background:#2a7;color:#fff}}
  .lines{{display:flex;flex-direction:column;gap:10px;margin-top:10px}}
  .line{{border-right:6px solid #ddd;border-radius:8px;background:#fff;padding:8px 10px;direction:rtl}}
@@ -471,7 +473,11 @@ def _lines_result(request, arr, model):
     analog.info(f"ip={_client_ip(request)} device={_device(request.headers.get('user-agent', ''))} "
                 f"mode=lines lines={len(lines)} sec={res.get('seconds')} model={res.get('model')}")
     flow = html.escape(res.get("text", "")) or "—"
-    by_line = html.escape(res.get("text_lines", "")) or "—"
+    # numbered like the boxes on the photo; list markers are not copied with the text
+    import re as _re
+    numbered = [f'<li value="{ln["n"]}">{html.escape(ln["text"])}</li>' for ln in lines
+                if _re.search(r"[א-תA-Za-z0-9]", ln["text"] or "")]
+    by_line = f'<ol class="numbered">{"".join(numbered)}</ol>' if numbered else "—"
     items = []
     for ln in lines:
         hexc, _ = word_colors(ln["conf"])

@@ -483,11 +483,11 @@ def _lines_result(request, arr, model):
     result = (f'<p><b>{len(lines)}</b> lines · {res.get("seconds", "?")} s · model=<b>{html.escape(str(res.get("model")))}</b> '
               f'· line finder=<b>{html.escape(str(res.get("segmenter")))}</b></p>'
               f'<h2>Text</h2>'
-              f'<div class="tabs"><button type="button" id="tabFlow" class="on">Paragraph</button>'
-              f'<button type="button" id="tabLines">Line by line</button>'
+              f'<div class="tabs"><button type="button" id="tabLines" class="on">Line by line</button>'
+              f'<button type="button" id="tabFlow">Paragraph</button>'
               f'<button type="button" id="copyBtn">Copy</button></div>'
-              f'<div class="pagetext" id="pFlow">{flow}</div>'
-              f'<div class="pagetext" id="pLines" style="display:none">{by_line}</div>'
+              f'<div class="pagetext" id="pLines">{by_line}</div>'
+              f'<div class="pagetext" id="pFlow" style="display:none">{flow}</div>'
               f'<h2>Detected lines</h2><div class="overlay"><img src="{overlay_uri}"></div>'
               f'<h2>Lines</h2><div class="lines">{"".join(items)}</div>')
     return render(result, model=model, mode="lines")
